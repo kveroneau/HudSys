@@ -1,0 +1,45 @@
+object LogForm: TLogForm
+  Left = 377
+  Height = 470
+  Top = 280
+  Width = 783
+  Caption = 'Log Viewer'
+  ClientHeight = 470
+  ClientWidth = 783
+  Color = clBlack
+  DesignTimePPI = 94
+  OnCreate = FormCreate
+  OnDestroy = FormDestroy
+  OnShow = FormShow
+  LCLVersion = '2.0.12.0'
+  object CloseBtn: TButton
+    Left = 8
+    Height = 40
+    Top = 8
+    Width = 97
+    Caption = 'Close Log'
+    OnClick = CloseBtnClick
+    TabOrder = 0
+  end
+  object CULog: TListBox
+    Left = 8
+    Height = 400
+    Top = 56
+    Width = 769
+    ItemHeight = 0
+    ScrollWidth = 767
+    TabOrder = 1
+    TopIndex = -1
+  end
+  object Label1: TLabel
+    Left = 232
+    Height = 34
+    Top = 8
+    Width = 341
+    Caption = 'Home Automation Log Viewer'
+    Font.Color = clLime
+    Font.Height = -24
+    ParentColor = False
+    ParentFont = False
+  end
+end
