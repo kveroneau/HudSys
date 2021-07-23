@@ -25,14 +25,17 @@ type
   private
     FHomeCU: THomeCUTCP;
     FOnHUDCtl: THUDCtlEvent;
+    FOnAlert: THUDCtlEvent;
     function TimeStamp: string;
     procedure OnSay(message: string);
     procedure OnLog(message: string);
     procedure OnCmd(cmd: string);
     procedure OnCtl(data: string);
+    procedure PostAlert(message: string);
   public
     procedure AddLog(message: string);
     property OnHUDCtl: THUDCtlEvent read FOnHUDCtl write FOnHUDCtl;
+    property OnAlert: THUDCtlEvent read FOnAlert write FOnAlert;
   end;
 
 var
@@ -90,11 +93,13 @@ procedure TLogForm.OnSay(message: string);
 begin
   SoundSystem.Say(message);
   AddLog(message);
+  PostAlert(message);
 end;
 
 procedure TLogForm.OnLog(message: string);
 begin
   AddLog(message);
+  PostAlert(message);
 end;
 
 procedure TLogForm.OnCmd(cmd: string);
@@ -106,6 +111,12 @@ procedure TLogForm.OnCtl(data: string);
 begin
   if Assigned(FOnHUDCtl) then
     FOnHUDCtl(data);
+end;
+
+procedure TLogForm.PostAlert(message: string);
+begin
+  if Assigned(FOnAlert) then
+    FOnAlert(message);
 end;
 
 procedure TLogForm.AddLog(message: string);

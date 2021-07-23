@@ -1,4 +1,4 @@
-unit homescr;
+unit livinghome;
 
 {$mode objfpc}{$H+}
 
@@ -6,7 +6,7 @@ interface
 
 uses
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs, StdCtrls, ExtCtrls,
-  ComCtrls, homecu, fpjson, piservice, dateutils, pisound, kevtel, utils,
+  ComCtrls, homecu, fpjson, piservice, dateutils, pisound, utils,
   logviewer;
 
 type
@@ -15,18 +15,20 @@ type
 
   THomeForm = class(TForm)
     BedroomBtn: TButton;
+    GamingBtn: TButton;
+    MultiRoom: TCheckBox;
+    RelaxBtn: TButton;
+    EntranceBtn: TButton;
+    ReloadBtn: TButton;
+    StudyBtn: TButton;
     AllOffBtn: TButton;
     AlertText: TLabel;
     AlarmIcon: TImage;
     BrightBtn: TButton;
     LogBtn: TButton;
-    SpecialBtn: TButton;
-    IPSetBtn: TButton;
     CalendarDate: TLabel;
     SleepMode: TCheckBox;
     IsPaused: TCheckBox;
-    Wakeme: TCheckBox;
-    SetAlarm: TButton;
     ExitButton: TButton;
     Clock: TLabel;
     Label1: TLabel;
@@ -37,32 +39,30 @@ type
     Brightness: TTrackBar;
     procedure AllOffBtnClick(Sender: TObject);
     procedure BedroomBtnClick(Sender: TObject);
+    procedure EntranceBtnClick(Sender: TObject);
+    procedure GamingBtnClick(Sender: TObject);
+    procedure MultiRoomClick(Sender: TObject);
+    procedure RelaxBtnClick(Sender: TObject);
+    procedure ReloadBtnClick(Sender: TObject);
+    procedure StudyBtnClick(Sender: TObject);
     procedure BrightBtnClick(Sender: TObject);
     procedure BrightnessChange(Sender: TObject);
     procedure ClockClick(Sender: TObject);
     procedure ExitButtonClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
-    procedure IPSetBtnClick(Sender: TObject);
     procedure IsPausedClick(Sender: TObject);
     procedure LogBtnClick(Sender: TObject);
-    procedure SetAlarmClick(Sender: TObject);
-    procedure SleepModeClick(Sender: TObject);
-    procedure SpecialBtnClick(Sender: TObject);
     procedure TimerTimer(Sender: TObject);
-    procedure WakemeClick(Sender: TObject);
   private
     cu: THomeCU;
     FScreenOn: Boolean;
-    FAlarm: TDateTime;
     FUpdating: Boolean;
     FAlertCount: Integer;
     procedure UpdateClock;
     procedure UpdateWeather;
     function FormatDigit(d: Word): String;
-    procedure PlayAlarm;
     procedure UpdateUI;
-    procedure HideUI;
     procedure HUDCtl(data: string);
     procedure UpdateAlert(message: string);
   public
@@ -75,9 +75,6 @@ var
 implementation
 
 {$R *.lfm}
-
-const
-  ALARM_SOUND = 'sounds/alarm.ogg';
 
 { THomeForm }
 
@@ -93,15 +90,6 @@ begin
   UpdateUI;
 end;
 
-procedure THomeForm.WakemeClick(Sender: TObject);
-begin
-  if not FUpdating then
-  begin
-    cu.Wakeme:=Wakeme.Checked;
-    LogForm.AddLog('Wake Me clicked.');
-  end;
-end;
-
 procedure THomeForm.FormCreate(Sender: TObject);
 begin
   {$IFDEF CPUARM}
@@ -113,11 +101,8 @@ begin
   cu:=THomeCU.Create;
   UpdateWeather;
   UpdateUI;
-  if GetHostName = 'livingroom' then
-    HideUI;
   Brightness.Position:=PiGetBrightness;
   FScreenOn:=True;
-  FAlarm:=0;
   SoundSystem.Start;
   SoundSystem.Say('Interface started.');
   FAlertCount:=0;
@@ -128,12 +113,6 @@ begin
   SoundSystem.Stop;
   Sleep(1000); { Wait for thread to term. }
   cu.Free;
-end;
-
-procedure THomeForm.IPSetBtnClick(Sender: TObject);
-begin
-  cu.Firewall('ipset');
-  LogForm.AddLog('IPSet Clicked.');
 end;
 
 procedure THomeForm.IsPausedClick(Sender: TObject);
@@ -150,72 +129,16 @@ begin
   LogForm.ShowModal;
 end;
 
-procedure THomeForm.SetAlarmClick(Sender: TObject);
-var
-  msg: string;
-begin
-  if SetAlarm.Caption = 'Alarm Set' then
-  begin
-    AlertText.Visible:=False;
-    FAlarm:=0;
-    SetAlarm.Caption:='Set Alarm';
-    AlarmIcon.Visible:=False;
-    LogForm.AddLog('Alarm unset.');
-    Exit;
-  end;
-  {$IFDEF DEBUG}
-  {FAlarm:=IncMinute(Now, 1);}
-  FAlarm:=EncodeTime(13,35,0,0);
-  {$ELSE}
-  {FAlarm:=IncMinute(Now, 30);
-  FAlarm:=IncHour(FAlarm, 8);}
-  FAlarm:=EncodeTime(7,0,0,0);
-  {$ENDIF}
-  msg:='Alarm has been set to '+IntToStr(HourOf(FAlarm))+':';
-  msg:=msg+IntToStr(MinuteOf(FAlarm));
-  LogForm.AddLog(msg);
-  SoundSystem.Say(msg);
-  AlertText.Caption:='Alarm set to '+IntToStr(HourOf(FAlarm))+':'+IntToStr(MinuteOf(FAlarm));
-  AlertText.Visible:=True;
-  SetAlarm.Caption:='Alarm Set';
-  AlarmIcon.Visible:=True;
-end;
-
-procedure THomeForm.SleepModeClick(Sender: TObject);
-var
-  ivr: TIVR;
-begin
-  if not FUpdating then
-  try
-    ivr:=TIVR.Create;
-    ivr.Sleeping:=SleepMode.Checked;
-    LogForm.AddLog('Sleep mode clicked.');
-  finally
-    ivr.Free;
-  end;
-end;
-
-procedure THomeForm.SpecialBtnClick(Sender: TObject);
-begin
-  if SpecialBtn.Caption = 'Special' then
-    SpecialBtn.Caption:='Confirm Spcl'
-  else
-  begin
-    cu.Firewall('flush');
-    LogForm.AddLog('Special clicked.');
-  end;
-end;
-
 procedure THomeForm.ExitButtonClick(Sender: TObject);
 begin
   HudSysExitCode:=2;
   Close;
 end;
 
-procedure THomeForm.BedroomBtnClick(Sender: TObject);
+procedure THomeForm.StudyBtnClick(Sender: TObject);
 begin
-  cu.Bedroom;
-  LogForm.AddLog('Bedroom clicked.');
+  cu.Study;
+  LogForm.AddLog('Study clicked.');
 end;
 
 procedure THomeForm.BrightBtnClick(Sender: TObject);
@@ -231,16 +154,6 @@ end;
 
 procedure THomeForm.ClockClick(Sender: TObject);
 begin
-  if SoundSystem.SoundPlaying then
-  begin
-    SoundSystem.StopSound;
-    FAlarm:=IncMinute(Now, 15);
-    AlertText.Caption:='Alarm snoozed for 15 minutes.';
-    AlertText.Visible:=True;
-    SetAlarm.Caption:='Alarm Set';
-    LogForm.AddLog('Alarm snoozed for 15 minutes.');
-    Exit;
-  end;
   if FScreenOn then
   begin
     PiDisplayOff;
@@ -263,6 +176,44 @@ begin
   FUpdating:=False;
 end;
 
+procedure THomeForm.BedroomBtnClick(Sender: TObject);
+begin
+  cu.Bedroom;
+  LogForm.AddLog('Bedroom clicked.');
+end;
+
+procedure THomeForm.EntranceBtnClick(Sender: TObject);
+begin
+  cu.Entrance;
+  LogForm.AddLog('Enterance clicked.');
+end;
+
+procedure THomeForm.GamingBtnClick(Sender: TObject);
+begin
+  cu.Theme('AarronGaming');
+  LogForm.AddLog('Gaming Theme clicked.');
+end;
+
+procedure THomeForm.MultiRoomClick(Sender: TObject);
+begin
+  if FUpdating then
+    Exit;
+  cu.Rooms:=MultiRoom.Checked;
+  LogForm.AddLog('Multi Room clicked.');
+end;
+
+procedure THomeForm.RelaxBtnClick(Sender: TObject);
+begin
+  cu.Relax;
+  LogForm.AddLog('Relax clicked.');
+end;
+
+procedure THomeForm.ReloadBtnClick(Sender: TObject);
+begin
+  HudSysExitCode:=0;
+  Close;
+end;
+
 procedure THomeForm.UpdateClock;
 var
   tm: TSystemTime;
@@ -270,9 +221,6 @@ begin
   GetLocalTime(tm);
   Clock.Caption:=FormatDigit(tm.Hour)+':'+FormatDigit(tm.Minute);
   CalendarDate.Caption:=FormatDateTime('dddd mmmm d, yyyy', Today);
-  if FAlarm > 0 then
-    if (tm.Hour = HourOf(FAlarm)) and (tm.Minute = MinuteOf(FAlarm)) then
-      PlayAlarm;
 end;
 
 procedure THomeForm.UpdateWeather;
@@ -292,48 +240,17 @@ begin
     Result:='0'+IntToStr(d);
 end;
 
-procedure THomeForm.PlayAlarm;
-begin
-  AlertText.Visible:=False;
-  FAlarm:=0;
-  SetAlarm.Caption:='Set Alarm';
-  if not cu.Sleeping then
-    Exit;
-  SoundSystem.Play(ALARM_SOUND);
-  LogForm.AddLog('Alarm triggered.');
-  {$IFDEF CPUARM}
-  PiDisplayOn;
-  FScreenOn:=True;
-  {$ENDIF}
-end;
-
 procedure THomeForm.UpdateUI;
 begin
   FUpdating:=True;
   SleepMode.Checked:=cu.Sleeping;
   IsPaused.Checked:=cu.Pause;
-  Wakeme.Checked:=cu.Wakeme;
-  if FAlarm > 0 then
-    AlarmIcon.Visible:=True
-  else
-    AlarmIcon.Visible:=False;
+  MultiRoom.Checked:=cu.Rooms;
   if FAlertCount > 0 then
     Dec(FAlertCount);
   if FAlertCount = 0 then
     AlertText.Visible:=False;
   FUpdating:=False;
-end;
-
-procedure THomeForm.HideUI;
-begin
-  SleepMode.Visible:=False;
-  IsPaused.Visible:=False;
-  Wakeme.Visible:=False;
-  SpecialBtn.Visible:=False;
-  IPSetBtn.Visible:=False;
-  SetAlarm.Visible:=False;
-  AllOffBtn.Visible:=False;
-  BedroomBtn.Visible:=False;
 end;
 
 procedure THomeForm.HUDCtl(data: string);
